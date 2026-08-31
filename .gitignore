@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时生成文件（不纳入版本控制）
+logs/
+*.log
+pending_messages.json
+
+# 敏感信息（plist 中含 webhook / 签名，不应上传）
+com.shirley.x-hotspot-bot.plist
+com.shirley.x-hotspot-bot-health.plist
+
+.DS_Store
+.claude/
