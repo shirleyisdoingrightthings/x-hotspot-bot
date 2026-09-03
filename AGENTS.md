@@ -9,7 +9,7 @@
    一份只有转述、没有现场的 X 播报，价值等于零。曾经的需求原话是
    「以后这种 X 热度最好能给我回链到讨论度最高的原帖」。
 
-2. **时效窗口是 48 小时，不是 24。** 另外三个 bot 都是 24h（新闻的时效就是一天），
+2. **时效窗口是 48 小时，不是 24。** 另外几个 bot 基本是 24h（新闻的时效就是一天），
    但 X 上一条帖子的讨论常要发酵一两天才到顶。改成 24h 会漏掉约一半话题。
    要调用 `X_BOT_WINDOW_H` 环境变量，别改代码默认值。
 
@@ -67,7 +67,7 @@ rm -f logs/report_draft.txt logs/run.log logs/run.jsonl        # 清掉测试残
 
 ## 共享层
 
-推送、去重、自愈、代理自愈全在 `../shared/bot_utils.py`，改那里三个 bot 同时生效，
+推送、去重、自愈、代理自愈全在 `../shared/bot_utils.py`，改那里所有 bot 同时生效，
 **改完要手动 commit + push**（私有仓 bot-ops，不自动 push）。
 新增 launchd job 时，输出重定向不要写进 Desktop / Documents / Downloads，
 详见 `../shared/README.md` 里那条 `exit 78 (EX_CONFIG)` 的教训。

@@ -57,7 +57,23 @@ Different perspectives（supportive/neutral/critical）→ AI Reddit Recap`，
 | `auto_repair.sh` / `claude_catchup.sh` | 薄包装，逻辑在 `../shared/` |
 | `com.shirley.x-hotspot-bot.plist.example` | 环境变量配置模板（含密钥，实际 plist 不进版本） |
 
-## 与另外三个 bot 的差别（改动时别抹平）
+## 它在「AI 日报」里的位置
+
+2026-09-03 起，飞书群里只有三个机器人。本 bot 的稿子**推送到 AI 产业日报的同一个
+webhook**，群里显示为「AI 产业日报」，和另外两块一起构成 AI 板块：
+
+| 块 | 播什么 | 覆盖方式 |
+|---|---|---|
+| AI 产业日报 | 今天 AI 圈发生了哪些事 | 广度层，一天十来条 |
+| **X 热点（本 bot）** | **当天最大那件事在 X 上被怎么吵的** | **深度层，一天一到两个话题** |
+| AI Builder 日报 | 那二十几位 builder 本人说了什么 | 人物层，原推原话 |
+
+⚠️ **别指望本 bot 给出「今天的热点清单」。** AINews 的 Twitter Recap 是每天只挑一件
+最大的事往深里扒的体例（2026-09-03 核对最近 6 期，9/1 那期 13 个小节全是 Fable 5.1
+的不同侧面），不是当天话题的巡览。覆盖一到两个话题是正常的，不是抓取出了问题；
+「今天有哪些事」由 AI 产业日报负责。
+
+## 与另外几个 bot 的差别（改动时别抹平）
 
 1. **时效窗口 48 小时**，不是 24。X 上的讨论常要发酵一两天才到顶，
    24h 会把「昨天发、今天才吵起来」的话题整个漏掉。改窗口用 `X_BOT_WINDOW_H`。
@@ -72,6 +88,8 @@ Different perspectives（supportive/neutral/critical）→ AI Reddit Recap`，
 
 1. **配 plist**：把 `com.shirley.x-hotspot-bot.plist.example` 复制到
    `~/Library/LaunchAgents/com.shirley.x-hotspot-bot.plist`，填入飞书 webhook 与代理端口。
+   ⚠️ `FEISHU_WEBHOOK` 现在要填 **AI 产业日报那个群机器人的地址**（三块共用），
+   运维告警另走 `FEISHU_ALERT_WEBHOOK` 指向的监测机器人。
    建议**单独开一个飞书群**，别和 AI 日报挤在一起。
 2. **挂进定时任务**：在 Claude App 的 `morning-catchup-daily-bots` 里加一段本 bot 的
    fetch → 写稿 → send，或者单独建一个任务。主 plist 不承担调度。
