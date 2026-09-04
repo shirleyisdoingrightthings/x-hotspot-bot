@@ -6,7 +6,9 @@ X 热点 Bot 的数据源层（provider）。
 不止一条，而且都可能失效。把取材抽成 provider，换源时只动这里，x_report.py 不用改。
 
 现有 provider（2026-08-31 实测可用，均直连 200）：
-  ainews    news.smol.ai/rss.xml —— 主力。每日扫 544 个 X 账号 + 12 个 subreddit，
+  ainews    主力。原站 news.smol.ai/rss.xml 自 2026-09-04 起 402（见 AINEWS_FEEDS
+            处的说明），现以 latent.space/feed 兜底，取其中的 [AINews] 期刊。
+            每日扫 544 个 X 账号 + 12 个 subreddit，
             单期正文约 90KB，**每条论断后面都挂原始 x.com 帖子链接**（实测 44~79 条/期）。
             章节结构固定：AI Twitter Recap → Top Story → Facts vs Opinions →
             Different perspectives（supportive / neutral / critical）→ AI Reddit Recap。
@@ -38,7 +40,22 @@ from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant
 # 24h 窗口会把「昨天发、今天才吵起来」的话题整个漏掉。
 DEFAULT_WINDOW_H = 48
 
-AINEWS_FEED = "https://news.smol.ai/rss.xml"
+# 2026-09-04：news.smol.ai 整站返回 402 Payment Required，body 是 Vercel 的
+# DEPLOYMENT_DISABLED（部署因账单被停用）——/rss.xml、/feed.xml、/rss、首页、
+# smol.ai/news 全部同样 402，不是本机代理或限流的问题。AINews 本身没停，它已
+# 并入 Latent Space，同一批 [AINews] 期刊在 latent.space 的 feed 里照常更新，
+# 正文结构与原站一致（实测 3 期 45 条原帖，Different opinions 分歧段完整）。
+# 所以做成「原站优先 + Latent Space 兜底」：原站续费恢复后自动切回去，不用再改。
+# requires_tag=True 表示该 feed 混有非 AINews 的常规文章（播客、专栏），
+# 必须按标题过滤，否则会把一篇播客文当成一期复盘收进来。
+# 2026-09-04 晚：按用户决定，latent.space 转正为首选，不再每天先去撞一次原站的 402。
+# 原站保留在末位——万一它续费恢复且 latent.space 那边出问题，还能兜一手；
+# 正常情况下第一个 feed 就成功，循环直接 break，不会产生多余请求。
+AINEWS_FEEDS = (
+    ("https://www.latent.space/feed", True),
+    ("https://news.smol.ai/rss.xml", False),
+)
+AINEWS_TAG = "[ainews]"
 TECHMEME_FEED = "https://www.techmeme.com/feed.xml"
 
 # 原帖链接：只认 x.com / twitter.com 的 /<user>/status/<id>
@@ -194,7 +211,17 @@ def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 3,
 
     每期：{title, url, date, outline:[h2...], recap:纯文本, posts:[{handle,url,mentions,context}]}
     """
-    entries = fetch_rss(AINEWS_FEED, limit=max_issues * 3)
+    # 按 AINEWS_FEEDS 顺序取第一个真正有货的 feed。带 tag 的 feed 要多取一些，
+    # 因为过滤掉非 AINews 文章后剩下的期数会少一半左右。
+    entries = []
+    for feed_url, requires_tag in AINEWS_FEEDS:
+        got = fetch_rss(feed_url, limit=max_issues * (6 if requires_tag else 3))
+        if requires_tag:
+            got = [e for e in got
+                   if AINEWS_TAG in (getattr(e, "title", "") or "").lower()]
+        if got:
+            entries = got
+            break
     if not entries:
         return {"name": "ainews", "issues": [], "raw_count": 0,
                 "note": "RSS 抓取失败", "stale_days": None}
