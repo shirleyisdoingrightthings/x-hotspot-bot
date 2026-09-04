@@ -34,7 +34,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
-from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant
+# X_POST_RE 在 bot_utils 里定义（ai-builder-bot 的出稿闸门也用它）；
+# 这里 re-export，本模块内与 x_report.py 的 sources.X_POST_RE 用法都不变。
+from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant, X_POST_RE
 
 # X 话题的时效窗口比新闻长：一条帖子的讨论往往要发酵一两天才到顶，
 # 24h 窗口会把「昨天发、今天才吵起来」的话题整个漏掉。
@@ -58,8 +60,6 @@ AINEWS_FEEDS = (
 AINEWS_TAG = "[ainews]"
 TECHMEME_FEED = "https://www.techmeme.com/feed.xml"
 
-# 原帖链接：只认 x.com / twitter.com 的 /<user>/status/<id>
-X_POST_RE = re.compile(r"https?://(?:www\.)?(?:x|twitter)\.com/([A-Za-z0-9_]{1,15})/status/(\d+)")
 HEADING_RE = re.compile(r"(?is)<h([1-4])[^>]*>(.*?)</h\1>")
 ANCHOR_RE = re.compile(r'(?is)<a\b[^>]*href=["\']([^"\']*)["\'][^>]*>(.*?)</a>')
 TAG_RE = re.compile(r"(?s)<[^>]+>")

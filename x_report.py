@@ -30,10 +30,9 @@ from pathlib import Path
 # 共享工具库：从脚本自身位置推导（bot 目录的同级 shared/），
 # 整个 bots 文件夹搬到任何位置都不用改路径
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
-from bot_utils import (sanitize_html, already_ran_today, send_feishu,
-                       extract_hrefs, record_sent_urls, load_sent_urls, url_key,
+from bot_utils import (already_ran_today, load_sent_urls, url_key,
                        update_zero_streak, make_logger, make_pending_saver,
-                       proxy_ok, emit_fetch_output)
+                       proxy_ok, emit_fetch_output, send_x_linked_report)
 
 import sources
 
@@ -215,54 +214,14 @@ def run_fetch() -> int:
 # ===== 模式 2：send =====
 
 def run_send(draft_path: Path) -> int:
-    t0 = time.time()
-
-    if already_ran_today(LOG_FILE):
-        print("今天已成功运行过，跳过发送。如需强制请设置 FORCE_RUN=1。", file=sys.stderr)
-        return 0
-
-    if not draft_path.exists():
-        write_log("FAIL", f"稿子文件不存在：{draft_path}")
-        return 1
-    report = draft_path.read_text(encoding="utf-8").strip()
-    if not report:
-        write_log("FAIL", f"稿子文件为空：{draft_path}")
-        return 1
-
-    report = sanitize_html(report)
-
-    # 出稿硬约束：一份没有原帖直链的 X 播报没有意义，宁可不发也不发一份
-    # 只有转述的。这条闸门是这个 bot 存在的理由，别为了"至少发出去"而放宽。
-    hrefs = extract_hrefs(report)
-    x_links = [u for u in hrefs if sources.X_POST_RE.search(u)]
-    if not x_links:
-        write_log("FAIL", "稿件里没有任何 x.com 原帖链接，拒绝发送（见 prompt.md 的硬性要求）")
-        return 1
-
-    save_pending([report])
-    print("📨 推送到飞书...", file=sys.stderr)
-    sent = send_feishu(report, FEISHU_WEBHOOK, FEISHU_SECRET)
-    print(f"  ✓ 推送成功（{sent} 条）", file=sys.stderr)
-    CACHE_FILE.unlink(missing_ok=True)
-
-    # 只把 x.com 原帖记入去重档案：Techmeme 之类的媒体链接同一话题
-    # 连着几天出现是正常的，拿它去重会误伤。
-    total = record_sent_urls(SENT_URLS, x_links)
-    print(f"  ✓ 已归档 {len(x_links)} 条原帖链接用于跨天去重（档案共 {total} 条）",
-          file=sys.stderr)
-
-    try:
-        meta = json.loads(FETCH_META.read_text(encoding="utf-8"))
-    except Exception:
-        meta = {"log_summary": "", "metrics": {}}
-    duration = round(time.time() - t0, 1)
-    write_log("OK",
-              f"Claude写稿 → {meta.get('log_summary', '')} → 飞书推送成功"
-              f"（{sent} 条 / {len(report)}字 / {len(x_links)} 条原帖）",
-              metrics={**meta.get("metrics", {}), "ai_calls": 0,
-                       "duration_s": duration, "report_chars": len(report),
-                       "x_links": len(x_links), "source": "claude"})
-    return 0
+    # 发送流程与 ai-builder-bot 完全一致，统一在 bot_utils.send_x_linked_report，
+    # 其中含出稿硬闸门：稿件必须带 x.com 原帖直链，否则拒发。
+    return send_x_linked_report(
+        draft_path,
+        log_file=LOG_FILE, cache_file=CACHE_FILE, fetch_meta=FETCH_META,
+        sent_urls=SENT_URLS, webhook=FEISHU_WEBHOOK, secret=FEISHU_SECRET,
+        write_log=write_log, save_pending=save_pending,
+        link_label="原帖")
 
 
 if __name__ == "__main__":
