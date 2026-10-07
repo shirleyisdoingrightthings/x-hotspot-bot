@@ -87,18 +87,6 @@ def _entry_html(entry) -> str:
     return getattr(entry, "summary", "") or ""
 
 
-def _posts_in(fragment: str) -> list:
-    """抽出片段里所有 x.com 原帖，按出现顺序去重，返回 [(handle, url)]。"""
-    seen, out = set(), []
-    for m in X_POST_RE.finditer(fragment):
-        handle, pid = m.group(1), m.group(2)
-        if pid in seen:
-            continue
-        seen.add(pid)
-        out.append((handle, f"https://x.com/{handle}/status/{pid}"))
-    return out
-
-
 def _twitter_section(body: str) -> str:
     """截出 AI Twitter Recap 那一段。取不到就退回全文——宁可多给写稿方一些
     Reddit 素材，也不要因为站点改版就整轮零产。"""

@@ -80,8 +80,7 @@ bash claude_report.sh send      # 读 logs/report_draft.txt 推送
 
 把 `.plist.example` 复制到 `~/Library/LaunchAgents/com.shirley.x-hotspot-bot.plist`，
 填入 webhook 与代理端口。注意 `FEISHU_WEBHOOK` 要填 AI 产业日报那个群机器人的地址
-（AI 三块共用一个，群里显示为同一个机器人），运维告警另走 `FEISHU_ALERT_WEBHOOK`
-指向的监测机器人。主 plist 不承担调度，写稿由 `morning-catchup-daily-bots` 定时任务驱动。
+（AI 三块共用一个，群里显示为同一个机器人）。主 plist 不承担调度，写稿由 `morning-catchup-daily-bots` 定时任务驱动。
 
 换机与排障（launchd 日志路径、claude CLI 断链等）见 [TROUBLESHOOTING.md](https://github.com/shirleyisdoingrightthings/bot-ops/blob/main/TROUBLESHOOTING.md)。
 
