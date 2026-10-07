@@ -29,18 +29,13 @@
         <key>FEISHU_WEBHOOK</key>
         <string>YOUR_FEISHU_WEBHOOK_URL</string>
 
-        <!-- 只有在添加机器人时勾了「签名校验」才需要填，没勾就留空字符串 -->
-        <key>FEISHU_SECRET</key>
-        <string></string>
-
         <!-- 本地代理：抓 news.smol.ai / techmeme 需要，推送飞书是直连 -->
         <key>HTTPS_PROXY</key>
         <string>http://127.0.0.1:YOUR_PORT</string>
         <key>HTTP_PROXY</key>
         <string>http://127.0.0.1:YOUR_PORT</string>
 
-        <!-- 可选：启用哪些 provider，逗号分隔。缺省 ainews,techmeme。
-             日后接了第三方 X API，改成 ainews,techmeme,twitterapi -->
+        <!-- 可选：启用哪些 provider，逗号分隔。缺省 ainews,techmeme。 -->
         <key>X_BOT_PROVIDERS</key>
         <string>ainews,techmeme</string>
 

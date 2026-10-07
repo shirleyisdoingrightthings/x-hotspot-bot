@@ -48,13 +48,11 @@ ZERO_STREAK = BASE / "logs" / ".zero_streak.json"
 ZERO_STREAK_THRESHOLD = 3
 
 # 启用哪些 provider，逗号分隔。默认 ainews 打底 + techmeme 交叉验证。
-# 日后接了第三方 X API，把 twitterapi 加进来即可。
 ENABLED = [p.strip() for p in
            os.getenv("X_BOT_PROVIDERS", "ainews,techmeme").split(",") if p.strip()]
 WINDOW_H = int(os.getenv("X_BOT_WINDOW_H", str(sources.DEFAULT_WINDOW_H)))
 
 FEISHU_WEBHOOK = os.getenv("FEISHU_WEBHOOK", "")
-FEISHU_SECRET = os.getenv("FEISHU_SECRET") or None
 
 write_log = make_logger(LOG_FILE, JSONL_FILE)
 save_pending = make_pending_saver(CACHE_FILE)
@@ -132,21 +130,6 @@ def gather() -> tuple:
         print(f"  ✓ techmeme：{m['raw_count']} 条"
               f"{' ' + m['note'] if m['note'] else ''}", file=sys.stderr)
 
-    # ---------- 其他 provider（如 twitterapi）----------
-    for name in ENABLED:
-        if name in ("ainews", "techmeme"):
-            continue
-        fn = sources.PROVIDERS.get(name)
-        if fn is None:
-            print(f"  ⚠️ 未知 provider：{name}（已跳过）", file=sys.stderr)
-            continue
-        try:
-            fn(window_h=WINDOW_H)
-        except NotImplementedError as exc:
-            print(f"  ⚠️ provider {name} 未接入：{exc}", file=sys.stderr)
-        except Exception as exc:
-            print(f"  ⚠️ provider {name} 异常：{exc}", file=sys.stderr)
-
     return "\n".join(lines), metrics, zero
 
 
@@ -218,7 +201,7 @@ def run_send(draft_path: Path) -> int:
     return send_x_linked_report(
         draft_path,
         log_file=LOG_FILE, cache_file=CACHE_FILE, fetch_meta=FETCH_META,
-        sent_urls=SENT_URLS, webhook=FEISHU_WEBHOOK, secret=FEISHU_SECRET,
+        sent_urls=SENT_URLS, webhook=FEISHU_WEBHOOK,
         write_log=write_log, save_pending=save_pending,
         link_label="原帖")
 

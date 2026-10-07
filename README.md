@@ -83,10 +83,3 @@ bash claude_report.sh send      # 读 logs/report_draft.txt 推送
 （AI 三块共用一个，群里显示为同一个机器人）。主 plist 不承担调度，写稿由 `morning-catchup-daily-bots` 定时任务驱动。
 
 换机与排障（launchd 日志路径、claude CLI 断链等）见 [TROUBLESHOOTING.md](https://github.com/shirleyisdoingrightthings/bot-ops/blob/main/TROUBLESHOOTING.md)。
-
-## 换更准的数据源
-
-`sources.py` 里留好了 `fetch_twitterapi` 占位。第三方 X API 比官方便宜 90–99%：
-twitterapi.io $0.15/1K 帖、SocialData $0.20/1K、GetXAPI $0.05/1K（twitterapi.io 有
-$0.1–1 免费额度、不用信用卡）。四步接入写在那个函数的 docstring 里：密钥进 plist →
-按关注列表拉 48h 帖子 → 用 like+repost+reply 排序 → 把 `twitterapi` 加进 `X_BOT_PROVIDERS`。

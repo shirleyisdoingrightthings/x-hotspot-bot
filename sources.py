@@ -23,8 +23,6 @@ X 热点 Bot 的数据源层（provider）。
                  （twitter. 与 x. 子域 SSL 直接失败），补的是 HN/Reddit 不是 X
   - Nitter       2026 年公共实例基本全灭
   - RSSHub / RSS-Bridge 的 twitter 路由：能跑，但业界共识是别用于生产
-
-未来若要「按真实互动量排序」，加一个 twitterapi provider 即可（见文件末尾的占位）。
 """
 
 import html
@@ -148,8 +146,7 @@ def _rank_posts(section: str, max_posts: int, ctx_chars: int) -> list:
 
     **被引用次数就是我们的讨论度代理指标**：一条帖子在同一天的复盘里被反复
     引用（既出现在 What happened，又出现在 Critical），说明它在这件事的讨论中
-    更居中。这不是真实的点赞/转发数——那需要付费的第三方 X API（见
-    fetch_twitterapi 的说明）。**写稿时必须如实说明口径，不能写成"最高赞"。**
+    更居中。这不是真实的点赞/转发数，**写稿时必须如实说明口径，不能写成"最高赞"。**
     """
     order, meta = [], {}
     for m in X_POST_RE.finditer(section):
@@ -282,23 +279,3 @@ def fetch_techmeme(window_h: int = DEFAULT_WINDOW_H, limit: int = 25,
     return {"name": "techmeme", "items": items, "raw_count": len(items), "note": ""}
 
 
-def fetch_twitterapi(**_kwargs) -> dict:
-    """占位：接第三方 X API 后可按真实互动量排序。
-
-    候选与实测价格（2026-08）：twitterapi.io $0.15/1K 帖、SocialData $0.20/1K、
-    GetXAPI $0.05/1K；官方 X API $5/1K 且只给 7 天检索。接入时：
-      1. 密钥走 launchd plist 的 EnvironmentVariables（本目录不存密钥）
-      2. 按用户的关注列表 / AI 账号清单拉最近 48h 的帖子
-      3. 用 like + repost + reply 数排序，替换 ainews 的「被引用次数」代理指标
-      4. 把 provider 名加进 x_report.py 的 PROVIDERS 与 X_BOT_PROVIDERS 默认值
-    """
-    raise NotImplementedError(
-        "twitterapi provider 尚未接入：需要先开通第三方 X API 并把密钥写进 plist。"
-        "详见本函数 docstring 与 README 的「换更准的数据源」一节。")
-
-
-PROVIDERS = {
-    "ainews": fetch_ainews,
-    "techmeme": fetch_techmeme,
-    "twitterapi": fetch_twitterapi,
-}
