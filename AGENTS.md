@@ -55,7 +55,7 @@ print('空 context:', sum(1 for p in iss['posts'] if not p['context']), '/', len
 ## 自测
 
 ```bash
-cd ~/Desktop/bots/x-hotspot-bot
+cd ~/.gemini/bots/x-hotspot-bot
 /usr/bin/python3 -m py_compile x_report.py sources.py
 FORCE_RUN=1 /usr/bin/python3 x_report.py --mode fetch          # 看 marker 与原帖数
 printf '<b>x</b>无链接\n' > logs/report_draft.txt
