@@ -40,20 +40,11 @@ from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant, X_POST_RE
 # 24h 窗口会把「昨天发、今天才吵起来」的话题整个漏掉。
 DEFAULT_WINDOW_H = 48
 
-# 2026-09-04：news.smol.ai 整站返回 402 Payment Required，body 是 Vercel 的
-# DEPLOYMENT_DISABLED（部署因账单被停用）——/rss.xml、/feed.xml、/rss、首页、
-# smol.ai/news 全部同样 402，不是本机代理或限流的问题。AINews 本身没停，它已
-# 并入 Latent Space，同一批 [AINews] 期刊在 latent.space 的 feed 里照常更新，
-# 正文结构与原站一致（实测 3 期 45 条原帖，Different opinions 分歧段完整）。
-# 所以做成「原站优先 + Latent Space 兜底」：原站续费恢复后自动切回去，不用再改。
-# requires_tag=True 表示该 feed 混有非 AINews 的常规文章（播客、专栏），
-# 必须按标题过滤，否则会把一篇播客文当成一期复盘收进来。
-# 2026-09-04 晚：按用户决定，latent.space 转正为首选，不再每天先去撞一次原站的 402。
-# 原站保留在末位——万一它续费恢复且 latent.space 那边出问题，还能兜一手；
-# 正常情况下第一个 feed 就成功，循环直接 break，不会产生多余请求。
+# 2026-09-04：原站 news.smol.ai 整站返回 402 Payment Required（DEPLOYMENT_DISABLED），
+# AINews 已并入 Latent Space，同一批 [AINews] 期刊在 latent.space 的 feed 里照常更新。
+# 2026-11-06：已彻底删除停服的 news.smol.ai/rss.xml 死源，仅保留 latent.space/feed。
 AINEWS_FEEDS = (
     ("https://www.latent.space/feed", True),
-    ("https://news.smol.ai/rss.xml", False),
 )
 AINEWS_TAG = "[ainews]"
 TECHMEME_FEED = "https://www.techmeme.com/feed.xml"
