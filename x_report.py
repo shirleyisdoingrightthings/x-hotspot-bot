@@ -13,10 +13,9 @@ X 热点播报
 写稿规范在同目录 prompt.md，由 Claude routine 读取。
 
 与另外三个 bot 的两点差别，改动时别抹平：
-1. **时效窗口 48 小时**，不是 24。X 上一条帖子的讨论常要发酵一两天才到顶，
-   24h 会把「昨天发、今天才吵起来」的话题整个漏掉。
-2. **去重键是 x.com 原帖 URL**，不是文章 URL。同一个话题连着两天上榜没关系
-   （讨论在演进），但同一条原帖不该被反复当成新料播两次。
+1. **时效窗口 30 小时**（覆盖每日 15:00 定时任务的 24h 间隔 + 6h 发刊浮动缓冲）。
+2. **双重去重（AINews 期刊 URL + x.com 原帖 URL）**。已播过的 `[AINews]` 期刊整期跳过，
+   且窗口内无未播新刊时直接返回 `=== NO_TOPICS ===` 停发，绝不拿旧刊兜底重推。
 """
 
 import argparse
@@ -78,7 +77,7 @@ def gather() -> tuple:
     # ---------- ainews（主力：原帖 + 讨论度）----------
     if "ainews" in ENABLED:
         try:
-            r = sources.fetch_ainews(window_h=WINDOW_H)
+            r = sources.fetch_ainews(window_h=WINDOW_H, seen_urls=seen)
         except Exception as exc:
             r = {"name": "ainews", "issues": [], "raw_count": 0,
                  "note": f"异常：{exc}", "stale_days": None}
@@ -107,6 +106,7 @@ def gather() -> tuple:
         metrics["ainews_posts"] = r["raw_count"]
         metrics["ainews_fresh"] = kept_posts
         metrics["ainews_stale_days"] = r.get("stale_days")
+        metrics["issue_urls"] = [iss["url"] for iss in r["issues"] if iss.get("url")]
         if not r["issues"]:
             zero.append("ainews")
         print(f"  ✓ ainews：{len(r['issues'])} 期 · {r['raw_count']} 条原帖"
@@ -153,9 +153,9 @@ def run_fetch() -> int:
 
     context, metrics, zero_sources = gather()
 
-    if not context.strip():
+    if not context.strip() or ("ainews" in ENABLED and metrics.get("ainews_fresh", 0) == 0):
         print("=== NO_TOPICS ===")
-        write_log("WARN", f"窗口 {WINDOW_H}h 内没抓到可用素材，未发送")
+        write_log("WARN", f"窗口 {WINDOW_H}h 内没抓到可用素材（上游 AINews 未产出新刊或已播过），未发送")
         return 0
 
     stale = update_zero_streak(ZERO_STREAK, zero_sources, list(ENABLED),

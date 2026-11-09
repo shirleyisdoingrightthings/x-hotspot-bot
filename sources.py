@@ -34,11 +34,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
 # X_POST_RE 在 bot_utils 里定义（ai-builder-bot 的出稿闸门也用它）；
 # 这里 re-export，本模块内与 x_report.py 的 sources.X_POST_RE 用法都不变。
-from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant, X_POST_RE
+from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant, url_key, X_POST_RE
 
-# X 话题的时效窗口比新闻长：一条帖子的讨论往往要发酵一两天才到顶，
-# 24h 窗口会把「昨天发、今天才吵起来」的话题整个漏掉。
-DEFAULT_WINDOW_H = 48
+# 2026-11-09：时效窗口由 48h 收紧为 30h（覆盖每日 15:00 定时任务的 24h 间隔 + 6h 发刊浮动缓冲），
+# 避免 48h 窗口过宽把前一天已播过的期刊和 Techmeme 旧闻重复卷入。
+DEFAULT_WINDOW_H = 30
 
 # 2026-09-04：原站 news.smol.ai 整站返回 402 Payment Required（DEPLOYMENT_DISABLED），
 # AINews 已并入 Latent Space，同一批 [AINews] 期刊在 latent.space 的 feed 里照常更新。
@@ -180,9 +180,9 @@ def _rank_posts(section: str, max_posts: int, ctx_chars: int) -> list:
     return [{k: v for k, v in d.items() if k != "idx"} for d in ranked[:max_posts]]
 
 
-def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 3,
+def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 2,
                  max_posts: int = 18, recap_chars: int = 9000,
-                 ctx_chars: int = 200) -> dict:
+                 ctx_chars: int = 200, seen_urls: set = None) -> dict:
     """主力源。返回 {"name","issues","raw_count","note","stale_days"}。
 
     每期：{title, url, date, outline:[h2...], recap:纯文本, posts:[{handle,url,mentions,context}]}
@@ -209,18 +209,18 @@ def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 3,
         dt = parse_entry_date(e)
         if dt and dt < cutoff:
             continue
+        link = getattr(e, "link", "") or ""
+        if seen_urls and link and url_key(link) in seen_urls:
+            continue  # 该期已推送过，严格拦截不重播
         picked.append((dt, e))
         if len(picked) >= max_issues:
             break
 
-    # 窗口内一期都没有（周末停更 / 站点延迟 / 停止更新）时，仍拿最新一期兜底，
-    # 但把「最新一期距今几天」一并报出去，让写稿方能主动向读者交代素材新鲜度。
-    stale_days = None
-    if not picked and entries:
-        dt = parse_entry_date(entries[0])
-        picked = [(dt, entries[0])]
-        if dt:
-            stale_days = round((now - dt).total_seconds() / 86400, 1)
+    # 2026-11-09：取消旧期强行兜底。当窗口内没有未播过的新一期 [AINews] 时，
+    # 直接返回空列表（触发 NO_TOPICS 停发），避免周末/周一重复推送同一期旧内容并浪费写稿 Token。
+    if not picked:
+        return {"name": "ainews", "issues": [], "raw_count": 0,
+                "note": "窗口内无未播新刊", "stale_days": None}
 
     issues, total_posts = [], 0
     for dt, e in picked:
@@ -242,7 +242,7 @@ def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 3,
         })
 
     return {"name": "ainews", "issues": issues, "raw_count": total_posts,
-            "note": "", "stale_days": stale_days}
+            "note": "", "stale_days": None}
 
 
 def fetch_techmeme(window_h: int = DEFAULT_WINDOW_H, limit: int = 25,
