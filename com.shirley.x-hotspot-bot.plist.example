@@ -4,10 +4,9 @@
 <!--
     配置模板：复制为 ~/Library/LaunchAgents/com.shirley.x-hotspot-bot.plist 并填入真实值。
 
-    ⚠️ 本 plist 不承担任何调度职责，和另外三个 bot 一致：它只是环境变量的唯一
-    权威配置源（health_check.sh 用 PlistBuddy 从 EnvironmentVariables 读 FEISHU_*）。
-    ProgramArguments 固定为 /usr/bin/true，仅为满足 launchd 对 plist 结构的要求，
-    永远不会被触发。真正的调度在 Claude App 的定时任务里。
+    ⚠️ 本 plist 不承担抓取调度，只是环境变量的唯一权威配置源。
+    真正的写稿调度由 Antigravity Sidecar（x-hotspot-morning，每天 08:30）触发，
+    09:30 由 com.shirley.x-hotspot-bot-health 执行轻量化健康检查。
 -->
 <dict>
     <key>Label</key>
@@ -23,24 +22,21 @@
 
     <key>EnvironmentVariables</key>
     <dict>
-        <!-- 飞书自定义机器人 webhook：群「设置 → 群机器人 → 添加机器人
-             → 自定义机器人」里取得，形如 https://open.feishu.cn/open-apis/bot/v2/hook/xxxx
-             想单独开一个「X 热点」群就新建一个机器人，别和 AI 日报共用。 -->
+        <!-- 飞书自定义机器人 webhook：与 AI 产业日报共用同一个群机器人或独立配置 -->
         <key>FEISHU_WEBHOOK</key>
         <string>YOUR_FEISHU_WEBHOOK_URL</string>
 
-        <!-- 本地代理：抓 news.smol.ai / techmeme 需要，推送飞书是直连 -->
+        <!-- 本地代理（统一 1082）：抓取 latent.space / techmeme 需要，推送飞书是直连 -->
         <key>HTTPS_PROXY</key>
-        <string>http://127.0.0.1:YOUR_PORT</string>
+        <string>http://127.0.0.1:1082</string>
         <key>HTTP_PROXY</key>
-        <string>http://127.0.0.1:YOUR_PORT</string>
+        <string>http://127.0.0.1:1082</string>
 
         <!-- 可选：启用哪些 provider，逗号分隔。缺省 ainews,techmeme。 -->
         <key>X_BOT_PROVIDERS</key>
         <string>ainews,techmeme</string>
 
-        <!-- 可选：时效窗口（小时），缺省 48。别调到 24——
-             X 上的讨论常要发酵一两天才到顶，24h 会漏掉半数话题。 -->
+        <!-- 时效窗口（小时），缺省 48（次早 08:30 独立运行窗口） -->
         <key>X_BOT_WINDOW_H</key>
         <string>48</string>
     </dict>

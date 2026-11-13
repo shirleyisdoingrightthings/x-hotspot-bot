@@ -36,9 +36,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
 # 这里 re-export，本模块内与 x_report.py 的 sources.X_POST_RE 用法都不变。
 from bot_utils import fetch_rss, parse_entry_date, is_ai_relevant, url_key, X_POST_RE
 
-# 2026-11-09：时效窗口由 48h 收紧为 30h（覆盖每日 15:00 定时任务的 24h 间隔 + 6h 发刊浮动缓冲），
-# 避免 48h 窗口过宽把前一天已播过的期刊和 Techmeme 旧闻重复卷入。
-DEFAULT_WINDOW_H = 30
+# 2026-11-13：调度拆至次早 08:30 独立运行（x-hotspot-morning），时效窗口统一为 48h，
+# 稳定覆盖前一美股工作日夜间发表的 AINews 与同期 Techmeme；跨天已播期刊仍由 sent_urls 拦截。
+DEFAULT_WINDOW_H = 48
 
 # 2026-09-04：原站 news.smol.ai 整站返回 402 Payment Required（DEPLOYMENT_DISABLED），
 # AINews 已并入 Latent Space，同一批 [AINews] 期刊在 latent.space 的 feed 里照常更新。

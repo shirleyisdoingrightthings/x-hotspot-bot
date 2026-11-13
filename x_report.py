@@ -2,18 +2,18 @@
 """
 X 热点播报
 
-每天把 X（Twitter）上 AI 圈在吵什么整理成一份播报，**每条话题都带讨论度最高的原帖直链**，
-由 Claude 写稿后推送到飞书。本脚本只负责抓取与推送，不含写稿用的第三方大模型 API。
+每天把 X（Twitter）上 AI 圈在吵什么整理成一份播报，**每条话题只带讨论度最高（被引用最多）的 1 条原帖直链**，
+由 AI 定时任务写稿后推送到飞书并归档至 Notion。本脚本只负责抓取与推送，不含写稿用的第三方大模型 API。
 
 两种运行模式（--mode，均零 API 成本）：
-- fetch：跑 provider 取材 → 把 context 打到 stdout（供 Claude routine 读取写稿）
-- send ：读取 Claude 写好的稿子文件 → 清洗 HTML → 推送飞书 + 写日志
+- fetch：跑 provider 取材 → 把 context 打到 stdout（并落盘 logs/last_context.txt）
+- send ：读取写好的稿子文件 → 清洗 HTML → 推送飞书 + 同步 Notion + 写日志
 
 取材层在同目录 sources.py（provider 可插拔，换源不用动本文件）。
-写稿规范在同目录 prompt.md，由 Claude routine 读取。
+写稿规范在同目录 prompt.md，由 Antigravity Sidecar 定时任务读取。
 
-与另外三个 bot 的两点差别，改动时别抹平：
-1. **时效窗口 30 小时**（覆盖每日 15:00 定时任务的 24h 间隔 + 6h 发刊浮动缓冲）。
+与另外几个 bot 的两点差别，改动时别抹平：
+1. **时效窗口 48 小时**（次早 08:30 独立运行，覆盖前一美股工作日夜间更新的 AINews）。
 2. **双重去重（AINews 期刊 URL + x.com 原帖 URL）**。已播过的 `[AINews]` 期刊整期跳过，
    且窗口内无未播新刊时直接返回 `=== NO_TOPICS ===` 停发，绝不拿旧刊兜底重推。
 """
@@ -209,8 +209,8 @@ def run_send(draft_path: Path) -> int:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="X 热点播报")
     parser.add_argument("--mode", choices=["fetch", "send"], required=True,
-                        help="fetch=取材并输出 context（供 Claude 写稿，零 API）"
-                             " / send=发送 Claude 写好的稿子")
+                        help="fetch=取材并输出 context（零 API）"
+                             " / send=发送写好的稿子")
     parser.add_argument("--draft", default=str(DRAFT_FILE),
                         help="send 模式读取的稿件路径")
     args = parser.parse_args()
