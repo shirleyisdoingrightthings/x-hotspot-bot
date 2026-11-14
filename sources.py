@@ -30,6 +30,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
 # X_POST_RE 在 bot_utils 里定义（ai-builder-bot 的出稿闸门也用它）；
@@ -55,9 +56,55 @@ TAG_RE = re.compile(r"(?s)<[^>]+>")
 WS_RE = re.compile(r"[ \t]+")
 
 
-def _plain(fragment: str, limit: int = 0) -> str:
-    """HTML 片段 → 纯文本。保留换行结构，压掉多余空格。"""
-    text = re.sub(r"(?i)<br\s*/?>", "\n", fragment)
+_TRACKING_QS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "fbclid", "gclid", "mc_cid", "mc_eid", "ref_src", "ref_url",
+}
+
+
+def _clean_url(url: str) -> str:
+    """去掉追踪参数并归一化 X status 链接。"""
+    hit = X_POST_RE.search(url)
+    if hit:
+        return f"https://x.com/{hit.group(1)}/status/{hit.group(2)}"
+    try:
+        parts = urlsplit(url)
+        host = parts.netloc.lower()
+        drop_keys = set(_TRACKING_QS)
+        if "x.com" in host or "twitter.com" in host:
+            drop_keys.update({"s", "t"})
+        qs = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+              if k.lower() not in drop_keys]
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(qs), ""))
+    except Exception:
+        return url
+
+
+def _plain(fragment: str, limit: int = 0, preserve_links: bool = False) -> str:
+    """HTML 片段 → 纯文本。preserve_links=True 时保留有意义的 [文本](URL) 以便写稿随文加链接。"""
+    work = fragment
+    if preserve_links:
+        def _keep_link(m):
+            href = html.unescape(m.group(1) or "").strip()
+            label = TAG_RE.sub("", m.group(2) or "")
+            label = WS_RE.sub(" ", html.unescape(label)).strip()
+            if not label:
+                return ""
+            if not href.startswith(("http://", "https://")):
+                return label
+            low = href.lower().split("?", 1)[0]
+            if any(h in low for h in ("substackcdn.com", "pbs.twimg.com")) and low.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
+                return label
+            cleaned = _clean_url(href)
+            if label.startswith(("http://", "https://")):
+                return cleaned
+            if label.startswith("[") and label.endswith("]") and len(label) > 2:
+                label = label[1:-1].strip()
+            label = label.replace("[", "(").replace("]", ")")
+            return f"[{label}]({cleaned})"
+
+        work = ANCHOR_RE.sub(_keep_link, work)
+    text = re.sub(r"(?i)<br\s*/?>", "\n", work)
     text = re.sub(r"(?i)</(p|li|div|h[1-6])>", "\n", text)
     text = TAG_RE.sub("", text)
     text = html.unescape(text)
@@ -107,18 +154,23 @@ def _outline(section: str) -> list:
             if m.group(1) == "2"]
 
 
+def _slice_safe(text: str, start: int, max_len: int) -> str:
+    """按换行边界截断并避免从 [文本](URL) 链接中间腰斩。"""
+    if len(text) - start <= max_len:
+        return text[start:]
+    end = text.rfind("\n", start, start + max_len)
+    if end <= start + int(max_len * 0.5):
+        end = start + max_len
+        lb = text.rfind("[", start, end)
+        rb = text.rfind(")", start, end)
+        if lb > rb:
+            end = lb
+    return text[start:end].rstrip()
+
+
 def _condense(section: str, budget: int) -> str:
-    """把 Twitter Recap 压到预算内，**但必须保住「分歧」那几段**。
-
-    起因（2026-08-31 首次跑通全流程时发现）：单纯 text[:budget] 会从头截，
-    而 AINews 把 Supportive / Neutral / Critical 放在很靠后的位置——6000 字的
-    截断正好把分歧全砍掉，写稿方只看得到一片叫好。prompt.md 又要求每条话题
-    都给出正反两面，等于要求它凭空编。
-
-    所以改成两段式：开头（发生了什么）拿 55% 预算，从「Facts vs opinions」
-    或「Different perspectives」起的那一段拿 45%，中间用省略号接上。
-    """
-    text = _plain(section)
+    """把 Twitter Recap 压到预算内，**但必须保住「分歧」那几段**，并保留正文内 [锚文本](URL) 链接。"""
+    text = _plain(section, preserve_links=True)
     if len(text) <= budget:
         return text
     head_budget = int(budget * 0.55)
@@ -126,10 +178,10 @@ def _condense(section: str, budget: int) -> str:
     for anchor in ("Different perspectives", "Facts vs opinions"):
         idx = text.find(anchor)
         if idx > head_budget:
-            return (text[:head_budget].rstrip()
+            return (_slice_safe(text, 0, head_budget)
                     + "\n\n…（中间的技术细节已略，完整版见上面的原文链接）…\n\n"
-                    + text[idx:idx + tail_budget])
-    return text[:budget]
+                    + _slice_safe(text, idx, tail_budget))
+    return _slice_safe(text, 0, budget)
 
 
 def _rank_posts(section: str, max_posts: int, ctx_chars: int) -> list:
@@ -181,7 +233,7 @@ def _rank_posts(section: str, max_posts: int, ctx_chars: int) -> list:
 
 
 def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 2,
-                 max_posts: int = 18, recap_chars: int = 9000,
+                 max_posts: int = 40, recap_chars: int = 22000,
                  ctx_chars: int = 200, seen_urls: set = None) -> dict:
     """主力源。返回 {"name","issues","raw_count","note","stale_days"}。
 
