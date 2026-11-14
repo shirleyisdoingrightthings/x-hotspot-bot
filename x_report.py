@@ -107,6 +107,7 @@ def gather() -> tuple:
         metrics["ainews_fresh"] = kept_posts
         metrics["ainews_stale_days"] = r.get("stale_days")
         metrics["issue_urls"] = [iss["url"] for iss in r["issues"] if iss.get("url")]
+        metrics["issue_dates"] = [iss["date"] for iss in r["issues"] if iss.get("date")]
         if not r["issues"]:
             zero.append("ainews")
         print(f"  ✓ ainews：{len(r['issues'])} 期 · {r['raw_count']} 条原帖"
@@ -171,6 +172,7 @@ def run_fetch() -> int:
                    f" + Techmeme {metrics.get('techmeme_items', 0)} 条")
     FETCH_META.write_text(json.dumps(
         {"log_summary": log_summary,
+         "fetch_date": datetime.now().strftime("%Y-%m-%d"),
          "metrics": {**metrics, "zero_sources": zero_sources,
                      "stale_sources": stale, "window_h": WINDOW_H,
                      "providers": ENABLED}},
