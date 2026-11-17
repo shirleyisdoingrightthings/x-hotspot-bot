@@ -233,8 +233,8 @@ def _rank_posts(section: str, max_posts: int, ctx_chars: int) -> list:
 
 
 def fetch_ainews(window_h: int = DEFAULT_WINDOW_H, max_issues: int = 2,
-                 max_posts: int = 40, recap_chars: int = 22000,
-                 ctx_chars: int = 200, seen_urls: set = None) -> dict:
+                 max_posts: int = 45, recap_chars: int = 65000,
+                 ctx_chars: int = 280, seen_urls: set = None) -> dict:
     """主力源。返回 {"name","issues","raw_count","note","stale_days"}。
 
     每期：{title, url, date, outline:[h2...], recap:纯文本, posts:[{handle,url,mentions,context}]}

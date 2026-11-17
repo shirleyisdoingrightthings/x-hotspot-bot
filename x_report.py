@@ -30,7 +30,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
 from bot_utils import (already_ran_today, load_sent_urls, url_key,
                        update_zero_streak, make_logger, make_pending_saver,
-                       proxy_ok, emit_fetch_output, send_x_linked_report)
+                       proxy_ok, emit_fetch_output, send_x_linked_report,
+                       load_daily_ledger, format_ledger_context)
 
 import sources
 
@@ -71,8 +72,13 @@ def gather() -> tuple:
     """跑所有启用的 provider，返回 (context 文本, metrics, zero_sources)。
     进度打到 stderr，让 fetch 模式的 stdout 只保留干净的 context。"""
     print(f"📡 provider: {', '.join(ENABLED)}（窗口 {WINDOW_H}h）", file=sys.stderr)
-    seen = load_sent_urls(SENT_URLS)
+    ledger = load_daily_ledger(exclude_bot="🐦 X 热点播报")
+    seen = load_sent_urls(SENT_URLS) | ledger["urls"]
     lines, metrics, zero = [], {}, []
+    ledger_block = format_ledger_context(exclude_bot="🐦 X 热点播报")
+    if ledger_block:
+        lines.append(ledger_block)
+        lines.append("")
 
     # ---------- ainews（主力：原帖 + 讨论度）----------
     if "ainews" in ENABLED:
